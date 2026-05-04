@@ -51,11 +51,11 @@
     "prisma": "^7.8.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-hook-form": "^7.74.0",
+    "react-hook-form": "^7.75.0",
     "recharts": "^3.8.1",
     "tailwind-merge": "^3.5.0",
     "tsx": "^4.21.0",
-    "zod": "^4.4.1"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.4",

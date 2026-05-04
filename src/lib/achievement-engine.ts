@@ -88,7 +88,12 @@ async function checkCondition(
       const where: any = { memberId, status: "APPROVED" }
       if (condition.category) where.task = { category: condition.category }
       if (condition.type_filter) where.task = { ...(where.task || {}), type: condition.type_filter }
-      if (condition.tags) where.task = { ...(where.task || {}), tags: { hasSome: condition.tags } }
+      if (condition.tags?.length) {
+        where.task = {
+          ...(where.task || {}),
+          OR: condition.tags.map((tag) => ({ tags: { contains: tag } })),
+        }
+      }
       const count = await prisma.taskCompletion.count({ where })
       return count >= (condition.count || 0)
     }
@@ -102,7 +107,7 @@ async function checkCondition(
       const where: any = { memberId, status: "APPROVED" }
       if (condition.category) where.task = { category: condition.category }
       const days = await getConsecutiveDays(memberId, where)
-      return days >= (condition.days || 0)
+      return days >= (condition.days || condition.count || 0)
     }
 
     case "REDEMPTION_COUNT": {

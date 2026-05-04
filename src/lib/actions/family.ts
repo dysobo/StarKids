@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import bcrypt from "bcryptjs"
-import type { MemberRole } from "@prisma/client"
+import type { MemberRole, UserAccountRole } from "@prisma/client"
 
 function generateInviteCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -19,6 +19,7 @@ function generateInviteCode() {
 export async function createFamily(formData: FormData) {
   const session = await auth()
   if (!session?.user?.id) throw new Error("请先登录")
+  if (session.user.role === "KID") throw new Error("小朋友账号不能创建家庭")
 
   const name = formData.get("name") as string
   const nickname = formData.get("nickname") as string
@@ -72,6 +73,8 @@ export async function joinFamily(formData: FormData) {
 
   if (!inviteCode || inviteCode.length < 5) throw new Error("请输入有效的邀请码")
   if (!nickname || nickname.trim().length < 2) throw new Error("昵称至少2个字符")
+  if (session.user.role === "KID" && role !== "KID") throw new Error("小朋友账号只能以小朋友身份加入")
+  if (session.user.role === "PARENT" && role === "KID") throw new Error("家长账号不能以小朋友身份加入")
 
   const family = await prisma.family.findUnique({
     where: { inviteCode },
@@ -110,7 +113,7 @@ export async function addKidToFamily(formData: FormData) {
   }
 
   const nickname = (formData.get("nickname") as string).trim()
-  const email = (formData.get("email") as string).trim()
+  const email = (formData.get("email") as string).trim().toLowerCase()
   const password = (formData.get("password") as string).trim()
 
   if (!nickname || nickname.length < 2) throw new Error("昵称至少2个字符")
@@ -127,7 +130,7 @@ export async function addKidToFamily(formData: FormData) {
       email,
       name: nickname,
       passwordHash: hash,
-      role: "KID" as MemberRole,
+      role: "KID" as UserAccountRole,
     },
   })
 

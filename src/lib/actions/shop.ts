@@ -1,19 +1,13 @@
 "use server"
 
-import { auth } from "@/auth"
 import { prisma } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { createNotification } from "./notifications"
+import { assertSameFamily, requireFamilyMember, requireUserId } from "@/lib/authz"
 import type { RewardCategory, RewardStatus } from "@prisma/client"
 
 export async function createReward(formData: FormData) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
-
-  const member = await prisma.familyMember.findFirst({
-    where: { userId: session.user.id, role: "PARENT" },
-  })
-  if (!member) throw new Error("只有家长才能管理商城")
+  const member = await requireFamilyMember("PARENT")
 
   await prisma.reward.create({
     data: {
@@ -36,10 +30,15 @@ export async function createReward(formData: FormData) {
 }
 
 export async function updateReward(formData: FormData) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
+  const member = await requireFamilyMember("PARENT")
 
   const id = formData.get("id") as string
+  const existing = await prisma.reward.findUnique({
+    where: { id },
+    select: { familyId: true },
+  })
+  if (!existing) throw new Error("商品不存在")
+  assertSameFamily(existing.familyId, member)
 
   await prisma.reward.update({
     where: { id },
@@ -58,29 +57,25 @@ export async function updateReward(formData: FormData) {
 }
 
 export async function deleteReward(id: string) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
+  const member = await requireFamilyMember("PARENT")
 
-  const member = await prisma.familyMember.findFirst({
-    where: { userId: session.user.id, role: "PARENT" },
+  const existing = await prisma.reward.findUnique({
+    where: { id },
+    select: { familyId: true },
   })
-  if (!member) throw new Error("只有家长才能管理商城")
+  if (!existing) throw new Error("商品不存在")
+  assertSameFamily(existing.familyId, member)
 
   await prisma.reward.delete({ where: { id } })
   revalidatePath("/admin/shop")
 }
 
 export async function redeemReward(rewardId: string, message?: string) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
-
-  const member = await prisma.familyMember.findFirst({
-    where: { userId: session.user.id },
-  })
-  if (!member) throw new Error("你还未加入家庭")
+  const member = await requireFamilyMember("KID")
 
   const reward = await prisma.reward.findUnique({ where: { id: rewardId } })
   if (!reward) throw new Error("商品不存在")
+  assertSameFamily(reward.familyId, member)
   if (reward.status !== "ACTIVE") throw new Error("商品已下架")
 
   if (reward.stock > 0 && reward.remainingStock <= 0) {
@@ -139,14 +134,22 @@ export async function redeemReward(rewardId: string, message?: string) {
 }
 
 export async function approveRedemption(redemptionId: string) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
+  const userId = await requireUserId()
+  const parent = await requireFamilyMember("PARENT")
+
+  const existing = await prisma.rewardRedemption.findUnique({
+    where: { id: redemptionId },
+    select: { status: true, reward: { select: { familyId: true } } },
+  })
+  if (!existing) throw new Error("兑换记录不存在")
+  if (existing.status !== "PENDING") throw new Error("该兑换申请已处理")
+  assertSameFamily(existing.reward.familyId, parent)
 
   const r = await prisma.rewardRedemption.update({
     where: { id: redemptionId },
     data: {
       status: "APPROVED",
-      approvedBy: session.user.id,
+      approvedBy: userId,
       approvedAt: new Date(),
     },
     include: { member: { select: { userId: true, nickname: true } }, reward: { select: { name: true } } },
@@ -171,8 +174,8 @@ export async function approveRedemption(redemptionId: string) {
 }
 
 export async function rejectRedemption(redemptionId: string, note?: string) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
+  const userId = await requireUserId()
+  const parent = await requireFamilyMember("PARENT")
 
   const redemption = await prisma.rewardRedemption.findUnique({
     where: { id: redemptionId },
@@ -180,6 +183,8 @@ export async function rejectRedemption(redemptionId: string, note?: string) {
   })
 
   if (!redemption) throw new Error("兑换记录不存在")
+  if (redemption.status !== "PENDING") throw new Error("该兑换申请已处理")
+  assertSameFamily(redemption.reward.familyId, parent)
 
   const r = await prisma.$transaction(async (tx) => {
     if (redemption.reward.stock > 0) {
@@ -193,7 +198,7 @@ export async function rejectRedemption(redemptionId: string, note?: string) {
       where: { id: redemptionId },
       data: {
         status: "REJECTED",
-        approvedBy: session.user.id,
+        approvedBy: userId,
         approvedAt: new Date(),
         parentNote: note || null,
       },

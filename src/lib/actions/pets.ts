@@ -1,19 +1,13 @@
 "use server"
 
-import { auth } from "@/auth"
 import { prisma } from "@/lib/db"
 import { revalidatePath } from "next/cache"
+import { assertSameFamily, requireFamilyMember } from "@/lib/authz"
 import type { PetSpecies, PetStage } from "@prisma/client"
-import { STAGE_CONFIG, SPECIES_EMOJI } from "@/lib/constants"
+import { STAGE_CONFIG } from "@/lib/constants"
 
 export async function createPet(formData: FormData) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
-
-  const member = await prisma.familyMember.findFirst({
-    where: { userId: session.user.id },
-  })
-  if (!member) throw new Error("你还未加入家庭")
+  const member = await requireFamilyMember("KID")
 
   const existing = await prisma.pet.findUnique({
     where: { memberId: member.id },
@@ -33,13 +27,7 @@ export async function createPet(formData: FormData) {
 }
 
 export async function feedPet() {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
-
-  const member = await prisma.familyMember.findFirst({
-    where: { userId: session.user.id },
-  })
-  if (!member) throw new Error("你还未加入家庭")
+  const member = await requireFamilyMember("KID")
 
   const pet = await prisma.pet.findUnique({
     where: { memberId: member.id },
@@ -82,13 +70,7 @@ export async function feedPet() {
 }
 
 export async function dressPet(outfitId: string) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
-
-  const member = await prisma.familyMember.findFirst({
-    where: { userId: session.user.id },
-  })
-  if (!member) throw new Error("你还未加入家庭")
+  const member = await requireFamilyMember("KID")
 
   const pet = await prisma.pet.findUnique({
     where: { memberId: member.id },
@@ -99,6 +81,8 @@ export async function dressPet(outfitId: string) {
     where: { id: outfitId },
   })
   if (!outfit) throw new Error("装扮不存在")
+  if (outfit.familyId) assertSameFamily(outfit.familyId, member)
+  if (outfit.species && outfit.species !== pet.species) throw new Error("这个装扮不适用于当前宠物")
 
   const grant = await prisma.petOutfitGrant.findFirst({
     where: { outfitId, memberId: member.id },
@@ -114,9 +98,30 @@ export async function dressPet(outfitId: string) {
 }
 
 export async function getPetDetails(memberId: string) {
+  const member = await requireFamilyMember()
+  if (member.role === "KID" && member.id !== memberId) {
+    throw new Error("只能查看自己的宠物")
+  }
+
+  if (member.role === "PARENT") {
+    const target = await prisma.familyMember.findUnique({
+      where: { id: memberId },
+      select: { familyId: true },
+    })
+    if (!target) throw new Error("家庭成员不存在")
+    assertSameFamily(target.familyId, member)
+  }
+
   const [pet, outfits, grants] = await Promise.all([
     prisma.pet.findUnique({ where: { memberId } }),
-    prisma.petOutfit.findMany({ where: {} }),
+    prisma.petOutfit.findMany({
+      where: {
+        OR: [
+          { familyId: member.familyId },
+          { familyId: null },
+        ],
+      },
+    }),
     prisma.petOutfitGrant.findMany({
       where: { memberId },
       select: { outfitId: true },

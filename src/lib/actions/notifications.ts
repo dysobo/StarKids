@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth"
 import { prisma } from "@/lib/db"
-import type { NotificationType, NotificationPriority } from "@prisma/client"
+import type { NotificationType } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 
 type CreateNotificationParams = {
@@ -58,8 +58,8 @@ export async function markAsRead(notificationId: string) {
   const session = await auth()
   if (!session?.user?.id) throw new Error("请先登录")
 
-  await prisma.notification.update({
-    where: { id: notificationId },
+  await prisma.notification.updateMany({
+    where: { id: notificationId, userId: session.user.id },
     data: { isRead: true, readAt: new Date() },
   })
 
@@ -82,6 +82,8 @@ export async function deleteNotification(notificationId: string) {
   const session = await auth()
   if (!session?.user?.id) throw new Error("请先登录")
 
-  await prisma.notification.delete({ where: { id: notificationId } })
+  await prisma.notification.deleteMany({
+    where: { id: notificationId, userId: session.user.id },
+  })
   revalidatePath("/")
 }

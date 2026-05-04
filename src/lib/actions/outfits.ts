@@ -1,18 +1,12 @@
 "use server"
 
-import { auth } from "@/auth"
 import { prisma } from "@/lib/db"
 import { revalidatePath } from "next/cache"
+import { assertSameFamily, requireFamilyMember } from "@/lib/authz"
 import type { PetSpecies } from "@prisma/client"
 
 export async function createOutfit(formData: FormData) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
-
-  const member = await prisma.familyMember.findFirst({
-    where: { userId: session.user.id },
-  })
-  if (!member) throw new Error("你还未加入家庭")
+  const member = await requireFamilyMember("PARENT")
 
   const species = formData.get("species") as string
 
@@ -33,11 +27,18 @@ export async function createOutfit(formData: FormData) {
 }
 
 export async function updateOutfit(formData: FormData) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
+  const member = await requireFamilyMember("PARENT")
 
   const id = formData.get("id") as string
   if (!id) throw new Error("缺少装扮ID")
+
+  const existing = await prisma.petOutfit.findUnique({
+    where: { id },
+    select: { familyId: true },
+  })
+  if (!existing) throw new Error("装扮不存在")
+  if (!existing.familyId) throw new Error("内置装扮不可修改")
+  assertSameFamily(existing.familyId, member)
 
   const species = formData.get("species") as string
 
@@ -58,21 +59,22 @@ export async function updateOutfit(formData: FormData) {
 }
 
 export async function deleteOutfit(id: string) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
+  const member = await requireFamilyMember("PARENT")
+
+  const existing = await prisma.petOutfit.findUnique({
+    where: { id },
+    select: { familyId: true },
+  })
+  if (!existing) throw new Error("装扮不存在")
+  if (!existing.familyId) throw new Error("内置装扮不可删除")
+  assertSameFamily(existing.familyId, member)
 
   await prisma.petOutfit.delete({ where: { id } })
   revalidatePath("/admin/pets")
 }
 
 export async function unlockOutfit(formData: FormData) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
-
-  const member = await prisma.familyMember.findFirst({
-    where: { userId: session.user.id },
-  })
-  if (!member) throw new Error("你还未加入家庭")
+  const member = await requireFamilyMember("PARENT")
 
   const outfitId = formData.get("outfitId") as string
   const kidMemberId = formData.get("memberId") as string
@@ -85,6 +87,20 @@ export async function unlockOutfit(formData: FormData) {
 
     const outfit = await tx.petOutfit.findUnique({ where: { id: outfitId } })
     if (!outfit) throw new Error("装扮不存在")
+    if (outfit.familyId && outfit.familyId !== member.familyId) {
+      throw new Error("无权操作其他家庭的装扮")
+    }
+
+    const kid = await tx.familyMember.findUnique({
+      where: { id: kidMemberId },
+      select: { familyId: true, role: true, currentPoints: true },
+    })
+    if (!kid || kid.familyId !== member.familyId || kid.role !== "KID") {
+      throw new Error("只能给本家庭的小朋友解锁装扮")
+    }
+    if (kid.currentPoints < outfit.points) {
+      throw new Error("小朋友积分不足，无法解锁该装扮")
+    }
 
     await tx.petOutfitGrant.create({
       data: {

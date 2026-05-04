@@ -1,11 +1,11 @@
 "use server"
 
-import { auth } from "@/auth"
 import { prisma } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { calculatePoints } from "@/lib/points-engine"
 import { checkAchievements } from "@/lib/achievement-engine"
 import { createNotification } from "./notifications"
+import { assertSameFamily, requireFamilyMember, requireUserId } from "@/lib/authz"
 import type { TaskCategory, TaskType, TaskFrequency, TaskDifficulty, TaskStatus } from "@prisma/client"
 
 // ═══════════════════════════════════════════════════════════════
@@ -13,13 +13,8 @@ import type { TaskCategory, TaskType, TaskFrequency, TaskDifficulty, TaskStatus 
 // ═══════════════════════════════════════════════════════════════
 
 export async function createTask(formData: FormData) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
-
-  const member = await prisma.familyMember.findFirst({
-    where: { userId: session.user.id, role: "PARENT" },
-  })
-  if (!member) throw new Error("只有家长才能创建任务")
+  const userId = await requireUserId()
+  const member = await requireFamilyMember("PARENT")
 
   const name = formData.get("name") as string
   const points = parseInt(formData.get("points") as string) || 5
@@ -32,7 +27,7 @@ export async function createTask(formData: FormData) {
   await prisma.task.create({
     data: {
       familyId: member.familyId,
-      creatorId: session.user.id,
+      creatorId: userId,
       name: name.trim(),
       description: (formData.get("description") as string) || null,
       icon: (formData.get("icon") as string) || "📌",
@@ -61,14 +56,14 @@ export async function createTask(formData: FormData) {
 }
 
 export async function updateTask(formData: FormData) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
+  const member = await requireFamilyMember("PARENT")
 
   const id = formData.get("id") as string
   if (!id) throw new Error("任务ID不能为空")
 
   const existing = await prisma.task.findUnique({ where: { id } })
   if (!existing) throw new Error("任务不存在")
+  assertSameFamily(existing.familyId, member)
 
   const name = formData.get("name") as string
 
@@ -98,8 +93,14 @@ export async function updateTask(formData: FormData) {
 }
 
 export async function deleteTask(id: string) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
+  const member = await requireFamilyMember("PARENT")
+
+  const existing = await prisma.task.findUnique({
+    where: { id },
+    select: { familyId: true },
+  })
+  if (!existing) throw new Error("任务不存在")
+  assertSameFamily(existing.familyId, member)
 
   await prisma.task.delete({ where: { id } })
 
@@ -111,11 +112,18 @@ export async function deleteTask(id: string) {
 // ═══════════════════════════════════════════════════════════════
 
 export async function assignTask(taskId: string, memberIds: string[]) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
+  const member = await requireFamilyMember("PARENT")
 
   const task = await prisma.task.findUnique({ where: { id: taskId } })
   if (!task) throw new Error("任务不存在")
+  assertSameFamily(task.familyId, member)
+
+  const validAssignees = await prisma.familyMember.count({
+    where: { familyId: member.familyId, role: "KID", id: { in: memberIds } },
+  })
+  if (validAssignees !== memberIds.length) {
+    throw new Error("只能分配给本家庭的小朋友")
+  }
 
   await prisma.task.update({
     where: { id: taskId },
@@ -134,19 +142,15 @@ export async function assignTask(taskId: string, memberIds: string[]) {
 // ═══════════════════════════════════════════════════════════════
 
 export async function completeTask(taskId: string) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
-
-  const member = await prisma.familyMember.findFirst({
-    where: { userId: session.user.id },
-  })
-  if (!member) throw new Error("你还未加入家庭")
+  const userId = await requireUserId()
+  const member = await requireFamilyMember("KID")
 
   const task = await prisma.task.findUnique({
     where: { id: taskId },
     include: { assignees: true },
   })
   if (!task) throw new Error("任务不存在")
+  assertSameFamily(task.familyId, member)
 
   const isAssigned = task.assignees.some((a) => a.id === member.id)
 
@@ -179,7 +183,7 @@ export async function completeTask(taskId: string) {
       memberId: member.id,
       pointsEarned: totalPoints,
       status: task.autoApprove ? "APPROVED" : "PENDING",
-      approvedBy: task.autoApprove ? session.user.id : null,
+      approvedBy: task.autoApprove ? userId : null,
       approvedAt: task.autoApprove ? new Date() : null,
       date: today,
     },
@@ -224,15 +228,23 @@ export async function completeTask(taskId: string) {
 // ═══════════════════════════════════════════════════════════════
 
 export async function approveTask(completionId: string, note?: string) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
+  const userId = await requireUserId()
+  const parent = await requireFamilyMember("PARENT")
 
   const completion = await prisma.$transaction(async (tx) => {
+    const existing = await tx.taskCompletion.findUnique({
+      where: { id: completionId },
+      select: { status: true, task: { select: { familyId: true } } },
+    })
+    if (!existing) throw new Error("任务完成记录不存在")
+    if (existing.status !== "PENDING") throw new Error("该任务已处理")
+    assertSameFamily(existing.task.familyId, parent)
+
     const updated = await tx.taskCompletion.update({
       where: { id: completionId },
       data: {
         status: "APPROVED",
-        approvedBy: session.user.id,
+        approvedBy: userId,
         approvedAt: new Date(),
         parentNote: note || null,
       },
@@ -272,14 +284,22 @@ export async function approveTask(completionId: string, note?: string) {
 }
 
 export async function rejectTask(completionId: string, note?: string) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
+  const userId = await requireUserId()
+  const parent = await requireFamilyMember("PARENT")
+
+  const existing = await prisma.taskCompletion.findUnique({
+    where: { id: completionId },
+    select: { status: true, task: { select: { familyId: true } } },
+  })
+  if (!existing) throw new Error("任务完成记录不存在")
+  if (existing.status !== "PENDING") throw new Error("该任务已处理")
+  assertSameFamily(existing.task.familyId, parent)
 
   const rejection = await prisma.taskCompletion.update({
     where: { id: completionId },
     data: {
       status: "REJECTED",
-      approvedBy: session.user.id,
+      approvedBy: userId,
       approvedAt: new Date(),
       parentNote: note || null,
     },

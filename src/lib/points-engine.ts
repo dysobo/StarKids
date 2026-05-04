@@ -21,6 +21,7 @@ export async function calculatePoints(
 ): Promise<BonusResult> {
   const breakdown: string[] = [`基础积分: +${taskPoints}⭐`]
   let bonusPoints = 0
+  let capApplied = false
 
   const [rules, member, config] = await Promise.all([
     prisma.pointRule.findMany({
@@ -73,11 +74,38 @@ export async function calculatePoints(
         if (maxPoints > 0 && todayPoints + taskPoints + bonusPoints > maxPoints) {
           const maxBonus = Math.max(0, maxPoints - todayPoints - taskPoints)
           bonusPoints = Math.min(bonusPoints, maxBonus)
-          breakdown.push(`⚠️ 已达到每日积分上限`)
+          capApplied = true
         }
         break
       }
     }
+  }
+
+  const configuredCap = config?.dailyCap || 0
+  if (configuredCap > 0) {
+    const todayPoints = await getTodayPoints(memberId)
+    const remaining = Math.max(0, configuredCap - todayPoints)
+    const awardedBase = Math.min(taskPoints, remaining)
+    const awardedBonus = Math.min(bonusPoints, Math.max(0, remaining - awardedBase))
+
+    if (awardedBase + awardedBonus < taskPoints + bonusPoints) {
+      capApplied = true
+    }
+
+    if (capApplied) {
+      breakdown.push("已按每日积分上限截断")
+    }
+
+    return {
+      basePoints: awardedBase,
+      bonusPoints: awardedBonus,
+      totalPoints: awardedBase + awardedBonus,
+      breakdown,
+    }
+  }
+
+  if (capApplied) {
+    breakdown.push("已按每日积分上限截断")
   }
 
   return {

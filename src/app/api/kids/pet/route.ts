@@ -8,9 +8,9 @@ export async function GET() {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const member = await prisma.familyMember.findFirst({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, role: "KID" },
   })
-  if (!member) return NextResponse.json({ error: "No family" }, { status: 404 })
+  if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const [pet, outfits, grants, totalEarned] = await Promise.all([
     prisma.pet.findUnique({ where: { memberId: member.id } }),

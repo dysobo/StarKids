@@ -1,24 +1,21 @@
 "use server"
 
-import { auth } from "@/auth"
 import { prisma } from "@/lib/db"
 import { revalidatePath } from "next/cache"
+import { assertSameFamily, requireFamilyMember } from "@/lib/authz"
 import type { AchievementCategory } from "@prisma/client"
 
 export async function createAchievement(formData: FormData) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
-
-  const member = await prisma.familyMember.findFirst({
-    where: { userId: session.user.id },
-  })
-  if (!member) throw new Error("你还未加入家庭")
+  const member = await requireFamilyMember("PARENT")
 
   const conditionType = formData.get("conditionType") as string
   const condition: any = { type: conditionType }
 
-  if (conditionType === "TASK_COUNT" || conditionType === "STREAK") {
+  if (conditionType === "TASK_COUNT") {
     condition.count = parseInt(formData.get("conditionCount") as string) || 0
+  }
+  if (conditionType === "STREAK") {
+    condition.days = parseInt(formData.get("conditionDays") as string) || parseInt(formData.get("conditionCount") as string) || 0
   }
   if (conditionType === "CONSECUTIVE_DAYS") {
     condition.days = parseInt(formData.get("conditionDays") as string) || 0
@@ -52,17 +49,27 @@ export async function createAchievement(formData: FormData) {
 }
 
 export async function updateAchievement(formData: FormData) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
+  const member = await requireFamilyMember("PARENT")
 
   const id = formData.get("id") as string
   if (!id) throw new Error("缺少成就ID")
 
+  const existing = await prisma.achievement.findUnique({
+    where: { id },
+    select: { familyId: true, isGlobal: true },
+  })
+  if (!existing) throw new Error("成就不存在")
+  if (existing.isGlobal || !existing.familyId) throw new Error("内置成就不可修改")
+  assertSameFamily(existing.familyId, member)
+
   const conditionType = formData.get("conditionType") as string
   const condition: any = { type: conditionType }
 
-  if (conditionType === "TASK_COUNT" || conditionType === "STREAK") {
+  if (conditionType === "TASK_COUNT") {
     condition.count = parseInt(formData.get("conditionCount") as string) || 0
+  }
+  if (conditionType === "STREAK") {
+    condition.days = parseInt(formData.get("conditionDays") as string) || parseInt(formData.get("conditionCount") as string) || 0
   }
   if (conditionType === "CONSECUTIVE_DAYS") {
     condition.days = parseInt(formData.get("conditionDays") as string) || 0
@@ -95,16 +102,30 @@ export async function updateAchievement(formData: FormData) {
 }
 
 export async function deleteAchievement(id: string) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
+  const member = await requireFamilyMember("PARENT")
+
+  const existing = await prisma.achievement.findUnique({
+    where: { id },
+    select: { familyId: true, isGlobal: true },
+  })
+  if (!existing) throw new Error("成就不存在")
+  if (existing.isGlobal || !existing.familyId) throw new Error("内置成就不可删除")
+  assertSameFamily(existing.familyId, member)
 
   await prisma.achievement.delete({ where: { id } })
   revalidatePath("/admin/achievements")
 }
 
 export async function toggleAchievement(id: string, isActive: boolean) {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("请先登录")
+  const member = await requireFamilyMember("PARENT")
+
+  const existing = await prisma.achievement.findUnique({
+    where: { id },
+    select: { familyId: true, isGlobal: true },
+  })
+  if (!existing) throw new Error("成就不存在")
+  if (existing.isGlobal || !existing.familyId) throw new Error("内置成就不可修改")
+  assertSameFamily(existing.familyId, member)
 
   await prisma.achievement.update({
     where: { id },

@@ -17,6 +17,9 @@ export async function POST(
 
   const { taskId } = await params
   const { memberIds } = await request.json()
+  if (!Array.isArray(memberIds)) {
+    return NextResponse.json({ error: "Invalid memberIds" }, { status: 400 })
+  }
 
   const task = await prisma.task.findUnique({
     where: { id: taskId },
@@ -24,6 +27,13 @@ export async function POST(
   })
   if (!task || task.familyId !== member.familyId) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 })
+  }
+
+  const validAssignees = await prisma.familyMember.count({
+    where: { familyId: member.familyId, role: "KID", id: { in: memberIds } },
+  })
+  if (validAssignees !== memberIds.length) {
+    return NextResponse.json({ error: "Invalid assignees" }, { status: 400 })
   }
 
   await prisma.task.update({

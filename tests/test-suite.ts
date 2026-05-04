@@ -12,6 +12,7 @@
 import { PrismaClient } from "@prisma/client"
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3"
 import bcrypt from "bcryptjs"
+import { calculatePoints } from "../src/lib/points-engine"
 
 const adapter = new PrismaBetterSqlite3({ url: "file:./dev.db" })
 const prisma = new PrismaClient({ adapter })
@@ -932,6 +933,9 @@ async function testPointsCapTruncation() {
     const remaining = Math.max(0, cap - nearCapPoints)
     console.log(`  📊 剩余可获积分: ${remaining}`)
     assert(remaining <= 10, "接近上限时剩余积分不超过10")
+
+    const capped = await calculatePoints(20, testIds.kid2MemberId, testIds.familyId)
+    assertEqual(capped.totalPoints, remaining, "积分计算结果按每日上限截断")
   }
 }
 
