@@ -9,12 +9,12 @@ import { CardSkeleton } from "@/components/ui/Skeleton"
 
 const CATEGORIES = [
   { value: "TOY", label: "🧸 玩具", color: "text-candy-pink" },
-  { value: "SNACK", label: "🍬 零食", color: "text-candy-orange" },
+  { value: "CUSTOM", label: "🍬 零食/自定义", color: "text-candy-orange" },
+  { value: "BOOK", label: "📚 书籍", color: "text-admin-primary" },
   { value: "PRIVILEGE", label: "👑 特权", color: "text-candy-purple" },
   { value: "EXPERIENCE", label: "🎡 体验", color: "text-candy-blue" },
+  { value: "ENTERTAINMENT", label: "🎮 娱乐", color: "text-candy-pink" },
   { value: "MONEY", label: "💰 零花钱", color: "text-candy-green" },
-  { value: "DIGITAL", label: "🎵 数字", color: "text-admin-primary" },
-  { value: "OTHER", label: "📦 其他", color: "text-warm-500" },
 ]
 
 type RewardData = {

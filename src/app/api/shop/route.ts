@@ -9,6 +9,17 @@ function toNonNegativeInt(value: unknown, fallback = 0) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback
 }
 
+function toRewardCategory(value: unknown): RewardCategory {
+  const category = String(value || "CUSTOM")
+  if (category === "SNACK" || category === "DIGITAL" || category === "OTHER") {
+    return "CUSTOM"
+  }
+  if (["MONEY", "TOY", "BOOK", "ENTERTAINMENT", "PRIVILEGE", "EXPERIENCE", "CUSTOM"].includes(category)) {
+    return category as RewardCategory
+  }
+  return "CUSTOM"
+}
+
 export async function GET() {
   try {
     const session = await auth()
@@ -74,7 +85,7 @@ export async function POST(request: Request) {
         name,
         description: body.description || null,
         points: Math.max(1, toNonNegativeInt(body.points, 50)),
-        category: (body.category || "OTHER") as RewardCategory,
+        category: toRewardCategory(body.category),
         isFeatured: body.isFeatured || false,
         stock,
         remainingStock: stock,

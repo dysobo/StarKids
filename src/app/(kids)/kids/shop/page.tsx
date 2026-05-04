@@ -23,8 +23,8 @@ type RewardData = {
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
-  TOY: "🧸", SNACK: "🍬", PRIVILEGE: "👑",
-  EXPERIENCE: "🎡", MONEY: "💰", DIGITAL: "🎵", OTHER: "📦",
+  TOY: "🧸", CUSTOM: "🍬", BOOK: "📚", PRIVILEGE: "👑",
+  EXPERIENCE: "🎡", MONEY: "💰", ENTERTAINMENT: "🎮",
 }
 
 export default function KidsShopPage() {
