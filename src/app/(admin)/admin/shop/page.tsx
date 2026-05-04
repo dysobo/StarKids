@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { createReward, deleteReward, approveRedemption, rejectRedemption } from "@/lib/actions/shop"
+import { deleteReward, approveRedemption, rejectRedemption } from "@/lib/actions/shop"
 import { apiPath } from "@/lib/client-api"
 import { cn, getErrorMessage } from "@/lib/utils"
 import { CardSkeleton } from "@/components/ui/Skeleton"
@@ -70,7 +70,26 @@ export default function AdminShopPage() {
     setError("")
     const formData = new FormData(e.currentTarget)
     try {
-      await createReward(formData)
+      const res = await fetch(apiPath("/api/shop"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: (formData.get("name") as string).trim(),
+          description: formData.get("description") as string,
+          category: formData.get("category") as string,
+          points: parseInt(formData.get("points") as string) || 50,
+          stock: parseInt(formData.get("stock") as string) || 0,
+          maxPerPerson: parseInt(formData.get("maxPerPerson") as string) || 0,
+          cooldownDays: parseInt(formData.get("cooldownDays") as string) || 0,
+          isFeatured: formData.get("isFeatured") === "true",
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || "添加商品失败")
+      }
+
       setShowCreateForm(false)
       e.currentTarget.reset()
       fetchData()

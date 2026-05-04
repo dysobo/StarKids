@@ -2,6 +2,12 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/db"
 import { NextResponse } from "next/server"
 import { getErrorMessage } from "@/lib/utils"
+import type { RewardCategory } from "@prisma/client"
+
+function toNonNegativeInt(value: unknown, fallback = 0) {
+  const parsed = parseInt(String(value ?? ""), 10)
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback
+}
 
 export async function GET() {
   try {
@@ -56,18 +62,24 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
+    const name = String(body.name || "").trim()
+    if (!name) {
+      return NextResponse.json({ error: "商品名称不能为空" }, { status: 400 })
+    }
+
+    const stock = toNonNegativeInt(body.stock)
     const reward = await prisma.reward.create({
       data: {
         familyId: member.familyId,
-        name: body.name,
+        name,
         description: body.description || null,
-        points: body.points || 0,
-        category: body.category || "OTHER",
+        points: Math.max(1, toNonNegativeInt(body.points, 50)),
+        category: (body.category || "OTHER") as RewardCategory,
         isFeatured: body.isFeatured || false,
-        stock: body.stock || 0,
-        remainingStock: body.stock || 0,
-        maxPerPerson: body.maxPerPerson || 0,
-        cooldownDays: body.cooldownDays || 0,
+        stock,
+        remainingStock: stock,
+        maxPerPerson: toNonNegativeInt(body.maxPerPerson),
+        cooldownDays: toNonNegativeInt(body.cooldownDays),
         status: "ACTIVE",
       },
     })
