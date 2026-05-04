@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { redeemReward } from "@/lib/actions/shop"
+import { apiPath } from "@/lib/client-api"
 import { cn, getErrorMessage } from "@/lib/utils"
 import { useToast } from "@/components/ui/ToastProvider"
 import { PageTransition } from "@/components/ui/PageTransition"
@@ -40,7 +41,7 @@ export default function KidsShopPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/kids/shop")
+      const res = await fetch(apiPath("/api/kids/shop"))
       if (res.ok) {
         const data = await res.json()
         setRewards(data.rewards || [])

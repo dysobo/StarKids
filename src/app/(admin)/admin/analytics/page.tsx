@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { apiPath } from "@/lib/client-api"
 import { cn } from "@/lib/utils"
 import { SPECIES_EMOJI, STAGE_LABELS } from "@/lib/constants"
 import { CardSkeleton } from "@/components/ui/Skeleton"
@@ -54,7 +55,7 @@ export default function AdminAnalyticsPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/analytics")
+      const res = await fetch(apiPath("/api/admin/analytics"))
       if (res.ok) {
         setData(await res.json())
       } else if (res.status === 404) {

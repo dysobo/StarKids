@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { createReward, deleteReward, approveRedemption, rejectRedemption } from "@/lib/actions/shop"
+import { apiPath } from "@/lib/client-api"
 import { cn, getErrorMessage } from "@/lib/utils"
 import { CardSkeleton } from "@/components/ui/Skeleton"
 
@@ -47,7 +48,7 @@ export default function AdminShopPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/shop")
+      const res = await fetch(apiPath("/api/shop"))
       if (res.ok) {
         const data = await res.json()
         setRewards(data.rewards || [])

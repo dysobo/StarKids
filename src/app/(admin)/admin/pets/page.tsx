@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { createOutfit, updateOutfit, deleteOutfit, unlockOutfit } from "@/lib/actions/outfits"
+import { apiPath } from "@/lib/client-api"
 import { cn, getErrorMessage } from "@/lib/utils"
 import { CardSkeleton } from "@/components/ui/Skeleton"
 import { useToast } from "@/components/ui/ToastProvider"
@@ -59,7 +60,7 @@ export default function AdminPetsPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/outfits")
+      const res = await fetch(apiPath("/api/admin/outfits"))
       if (res.ok) {
         const data = await res.json()
         setOutfits(data.outfits || [])

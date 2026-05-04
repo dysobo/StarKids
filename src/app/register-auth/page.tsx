@@ -7,6 +7,7 @@ import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import Link from "next/link"
+import { apiPath } from "@/lib/client-api"
 import { cn } from "@/lib/utils"
 
 const registerAuthSchema = z
@@ -52,7 +53,7 @@ export default function RegisterAuthPage() {
     formData.append("role", data.role)
 
     try {
-      const res = await fetch("/api/register", {
+      const res = await fetch(apiPath("/api/register"), {
         method: "POST",
         body: formData,
       })

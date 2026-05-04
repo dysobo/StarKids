@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { createAchievement, updateAchievement, deleteAchievement, toggleAchievement } from "@/lib/actions/achievements"
+import { apiPath } from "@/lib/client-api"
 import { cn, getErrorMessage } from "@/lib/utils"
 import { CardSkeleton } from "@/components/ui/Skeleton"
 
@@ -76,7 +77,7 @@ export default function AdminAchievementsPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/achievements")
+      const res = await fetch(apiPath("/api/admin/achievements"))
       if (res.ok) {
         const data = await res.json()
         setAchievements(data.achievements || [])

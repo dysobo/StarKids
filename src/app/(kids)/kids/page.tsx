@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { apiPath } from "@/lib/client-api"
 import { PageTransition } from "@/components/ui/PageTransition"
 import { ProfileSkeleton, GridSkeleton } from "@/components/ui/Skeleton"
 
@@ -36,8 +37,8 @@ export default function KidsHomePage() {
     async function fetchData() {
       try {
         const [tasksRes, memberRes] = await Promise.all([
-          fetch("/api/kids/tasks"),
-          fetch("/api/kids/me"),
+          fetch(apiPath("/api/kids/tasks")),
+          fetch(apiPath("/api/kids/me")),
         ])
         if (tasksRes.ok) {
           const data = await tasksRes.json()

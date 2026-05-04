@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { apiPath } from "@/lib/client-api"
 import { cn } from "@/lib/utils"
 import { SPECIES_EMOJI, STAGE_LABELS } from "@/lib/constants"
 import { CardSkeleton } from "@/components/ui/Skeleton"
@@ -56,7 +57,7 @@ export default function AdminFamilyPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/family/members")
+      const res = await fetch(apiPath("/api/family/members"))
       if (res.ok) {
         setData(await res.json())
       } else if (res.status === 404) {
@@ -93,7 +94,7 @@ export default function AdminFamilyPage() {
       fd.append("email", values.email)
       fd.append("password", values.password)
 
-      const res = await fetch("/api/family/add-kid", {
+      const res = await fetch(apiPath("/api/family/add-kid"), {
         method: "POST",
         body: fd,
       })

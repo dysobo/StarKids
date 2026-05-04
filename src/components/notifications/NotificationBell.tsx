@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { markAsRead, markAllAsRead, deleteNotification } from "@/lib/actions/notifications"
+import { apiPath } from "@/lib/client-api"
 import { cn } from "@/lib/utils"
 
 type Notification = {
@@ -30,7 +31,7 @@ export function NotificationBell({ href = "/kids/notifications" }: { href?: stri
   useEffect(() => {
     async function fetchCount() {
       try {
-        const res = await fetch("/api/notifications?unread=true")
+        const res = await fetch(apiPath("/api/notifications?unread=true"))
         if (res.ok) {
           const data = await res.json()
           setCount(data.unreadCount || 0)
@@ -70,7 +71,7 @@ export function NotificationList() {
 
   async function fetchNotifications() {
     try {
-      const res = await fetch("/api/notifications")
+      const res = await fetch(apiPath("/api/notifications"))
       if (res.ok) {
         const data = await res.json()
         setNotifications(data.notifications || [])

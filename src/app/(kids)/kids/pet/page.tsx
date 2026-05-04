@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { feedPet, dressPet, createPet } from "@/lib/actions/pets"
+import { apiPath } from "@/lib/client-api"
 import { cn, getErrorMessage } from "@/lib/utils"
 import { SPECIES_EMOJI, SPECIES_LABELS, STAGE_CONFIG, MOOD_EMOJIS } from "@/lib/constants"
 
@@ -52,7 +53,7 @@ export default function KidsPetPage() {
   const [animatePet, setAnimatePet] = useState(false)
 
   async function fetchDataRaw() {
-    const res = await fetch("/api/kids/pet")
+    const res = await fetch(apiPath("/api/kids/pet"))
     if (res.ok) {
       const data = await res.json()
       setPet(data.pet)

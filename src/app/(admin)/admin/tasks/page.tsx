@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { createTask, deleteTask, approveTask, rejectTask } from "@/lib/actions/tasks"
 import { useRouter } from "next/navigation"
+import { apiPath } from "@/lib/client-api"
 import { cn, getErrorMessage } from "@/lib/utils"
 import { CardSkeleton } from "@/components/ui/Skeleton"
 
@@ -50,7 +51,7 @@ export default function AdminTasksPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/tasks")
+      const res = await fetch(apiPath("/api/tasks"))
       if (res.ok) {
         const data = await res.json()
         setTasks(data.tasks || [])
@@ -361,7 +362,7 @@ function AssignDialog({
   const [selected, setSelected] = useState<string[]>([])
 
   async function loadMembers() {
-    const res = await fetch("/api/family/members")
+    const res = await fetch(apiPath("/api/family/members"))
     if (res.ok) {
       const data = await res.json()
       const membersData = (data.members || []) as Array<{ id: string; nickname: string; role: string }>
@@ -375,7 +376,7 @@ function AssignDialog({
   }
 
   async function handleSave() {
-    const res = await fetch(`/api/tasks/${taskId}/assign`, {
+    const res = await fetch(apiPath(`/api/tasks/${taskId}/assign`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ memberIds: selected }),

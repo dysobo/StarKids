@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
+import { apiPath } from "@/lib/client-api"
 import { cn } from "@/lib/utils"
 import { CardSkeleton } from "@/components/ui/Skeleton"
 import { SPECIES_EMOJI, STAGE_LABELS } from "@/lib/constants"
@@ -54,8 +55,8 @@ export default function AdminDashboardPage() {
   const fetchData = useCallback(async () => {
     try {
       const [analyticsRes, tasksRes] = await Promise.all([
-        fetch("/api/admin/analytics"),
-        fetch("/api/tasks"),
+        fetch(apiPath("/api/admin/analytics")),
+        fetch(apiPath("/api/tasks")),
       ])
 
       const analyticsData = analyticsRes.ok ? await analyticsRes.json() : null

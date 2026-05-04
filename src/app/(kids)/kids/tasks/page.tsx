@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { completeTask } from "@/lib/actions/tasks"
+import { apiPath } from "@/lib/client-api"
 import { cn, getErrorMessage } from "@/lib/utils"
 import { CATEGORY_LABELS } from "@/lib/constants"
 import { useToast } from "@/components/ui/ToastProvider"
@@ -34,7 +35,7 @@ export default function KidsTasksPage() {
 
   const fetchTasks = useCallback(async () => {
     try {
-      const res = await fetch("/api/kids/tasks")
+      const res = await fetch(apiPath("/api/kids/tasks"))
       if (res.ok) {
         const data = await res.json()
         setTasks(data.tasks || [])

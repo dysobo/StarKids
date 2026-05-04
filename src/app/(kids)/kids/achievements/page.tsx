@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { apiPath } from "@/lib/client-api"
 import { cn } from "@/lib/utils"
 import { PageTransition } from "@/components/ui/PageTransition"
 import { CardSkeleton } from "@/components/ui/Skeleton"
@@ -36,7 +37,7 @@ export default function KidsAchievementsPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/kids/achievements")
+      const res = await fetch(apiPath("/api/kids/achievements"))
       if (res.ok) {
         const data = await res.json()
         setAchievements(data.achievements || [])

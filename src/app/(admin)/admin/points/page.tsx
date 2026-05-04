@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { apiPath } from "@/lib/client-api"
 import { cn } from "@/lib/utils"
 import { CardSkeleton } from "@/components/ui/Skeleton"
 
@@ -23,7 +24,7 @@ export default function AdminPointsPage() {
 
   const fetchConfig = useCallback(async () => {
     try {
-      const res = await fetch("/api/points/config")
+      const res = await fetch(apiPath("/api/points/config"))
       if (res.ok) {
         const data = await res.json()
         setConfig(data)
@@ -46,7 +47,7 @@ export default function AdminPointsPage() {
     const formData = new FormData(e.currentTarget)
 
     try {
-      const res = await fetch("/api/points/config", {
+      const res = await fetch(apiPath("/api/points/config"), {
         method: "POST",
         body: formData,
       })
