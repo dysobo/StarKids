@@ -5,11 +5,19 @@ import { revalidatePath } from "next/cache"
 import { assertSameFamily, requireFamilyMember } from "@/lib/authz"
 import type { AchievementCategory } from "@prisma/client"
 
+type AchievementConditionInput = {
+  type: string
+  count?: number
+  days?: number
+  points?: number
+  category?: string
+}
+
 export async function createAchievement(formData: FormData) {
   const member = await requireFamilyMember("PARENT")
 
   const conditionType = formData.get("conditionType") as string
-  const condition: any = { type: conditionType }
+  const condition: AchievementConditionInput = { type: conditionType }
 
   if (conditionType === "TASK_COUNT") {
     condition.count = parseInt(formData.get("conditionCount") as string) || 0
@@ -63,7 +71,7 @@ export async function updateAchievement(formData: FormData) {
   assertSameFamily(existing.familyId, member)
 
   const conditionType = formData.get("conditionType") as string
-  const condition: any = { type: conditionType }
+  const condition: AchievementConditionInput = { type: conditionType }
 
   if (conditionType === "TASK_COUNT") {
     condition.count = parseInt(formData.get("conditionCount") as string) || 0

@@ -2,6 +2,14 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/db"
 import { NextResponse } from "next/server"
 
+function parseCondition(condition: string) {
+  try {
+    return JSON.parse(condition)
+  } catch {
+    return { type: "UNKNOWN" }
+  }
+}
+
 export async function GET() {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -48,7 +56,7 @@ export async function GET() {
     description: a.description,
     icon: a.icon,
     category: a.category,
-    condition: a.condition,
+    condition: parseCondition(a.condition),
     bonusPoints: a.bonusPoints,
     sortOrder: a.sortOrder,
     isActive: a.isActive,

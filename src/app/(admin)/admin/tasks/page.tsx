@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { createTask, deleteTask, approveTask, rejectTask } from "@/lib/actions/tasks"
 import { useRouter } from "next/navigation"
-import { cn } from "@/lib/utils"
+import { cn, getErrorMessage } from "@/lib/utils"
 import { CardSkeleton } from "@/components/ui/Skeleton"
 
 const EMOJI_PRESETS = ["🪥", "📖", "🧹", "🏃", "✏️", "🎨", "🎹", "📚", "🥦", "🧸", "🎒", "🛏️", "🍽️", "👀", "🌙", "👕", "🙏", "🤝", "💧", "🚲"]
@@ -45,7 +45,6 @@ export default function AdminTasksPage() {
   const [pendingCompletions, setPendingCompletions] = useState<CompletionData[]>([])
   const [activeTab, setActiveTab] = useState<"tasks" | "review">("tasks")
   const [showCreateForm, setShowCreateForm] = useState(false)
-  const [editId, setEditId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
@@ -78,8 +77,8 @@ export default function AdminTasksPage() {
       e.currentTarget.reset()
       fetchData()
       router.refresh()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(getErrorMessage(err))
     }
   }
 
@@ -118,7 +117,6 @@ export default function AdminTasksPage() {
         <button
           onClick={() => {
             setShowCreateForm(!showCreateForm)
-            setEditId(null)
           }}
           className="h-10 px-5 bg-admin-primary text-white rounded-xl text-sm font-semibold hover:brightness-110 transition-all"
         >
@@ -366,7 +364,8 @@ function AssignDialog({
     const res = await fetch("/api/family/members")
     if (res.ok) {
       const data = await res.json()
-      setMembers((data.members || []).filter((m: any) => m.role === "KID"))
+      const membersData = (data.members || []) as Array<{ id: string; nickname: string; role: string }>
+      setMembers(membersData.filter((m) => m.role === "KID"))
     }
   }
 

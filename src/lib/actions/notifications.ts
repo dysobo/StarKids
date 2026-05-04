@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth"
 import { prisma } from "@/lib/db"
-import type { NotificationType } from "@prisma/client"
+import type { NotificationType, Prisma } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 
 type CreateNotificationParams = {
@@ -13,7 +13,7 @@ type CreateNotificationParams = {
   title: string
   content?: string
   link?: string
-  data?: any
+  data?: unknown
 }
 
 export async function createNotification(params: CreateNotificationParams) {
@@ -35,8 +35,8 @@ export async function getNotifications(type?: string) {
   const session = await auth()
   if (!session?.user?.id) throw new Error("请先登录")
 
-  const where: any = { userId: session.user.id }
-  if (type) where.type = type
+  const where: Prisma.NotificationWhereInput = { userId: session.user.id }
+  if (type) where.type = type as NotificationType
 
   return prisma.notification.findMany({
     where,

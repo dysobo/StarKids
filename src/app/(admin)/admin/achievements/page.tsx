@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { createAchievement, updateAchievement, deleteAchievement, toggleAchievement } from "@/lib/actions/achievements"
-import { cn } from "@/lib/utils"
+import { cn, getErrorMessage } from "@/lib/utils"
 import { CardSkeleton } from "@/components/ui/Skeleton"
 
 const CATEGORIES = [
@@ -48,7 +48,7 @@ type AchievementData = {
   description: string | null
   icon: string
   category: string
-  condition: any
+  condition: AchievementCondition
   bonusPoints: number
   sortOrder: number
   isActive: boolean
@@ -56,6 +56,14 @@ type AchievementData = {
   isGlobal: boolean
   members: MemberInfo[]
   grantedCount: number
+}
+
+type AchievementCondition = {
+  type?: string
+  count?: number
+  days?: number
+  points?: number
+  category?: string
 }
 
 export default function AdminAchievementsPage() {
@@ -95,8 +103,8 @@ export default function AdminAchievementsPage() {
       e.currentTarget.reset()
       fetchData()
       router.refresh()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(getErrorMessage(err))
     }
   }
 
@@ -110,8 +118,8 @@ export default function AdminAchievementsPage() {
       setEditItem(null)
       fetchData()
       router.refresh()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(getErrorMessage(err))
     }
   }
 

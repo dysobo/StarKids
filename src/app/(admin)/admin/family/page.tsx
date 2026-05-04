@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { SPECIES_EMOJI, STAGE_LABELS } from "@/lib/constants"
 import { CardSkeleton } from "@/components/ui/Skeleton"
@@ -26,11 +25,6 @@ type FamilyData = {
   inviteCode: string
   createdAt: string
   members: FamilyMember[]
-}
-
-const ROLE_LABELS: Record<string, string> = {
-  PARENT: "👑 家长",
-  KID: "🌟 小朋友",
 }
 
 const addKidSchema = z.object({

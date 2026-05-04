@@ -1,12 +1,13 @@
 import { prisma } from "@/lib/db"
 import { SPECIES_EMOJI, STAGE_CONFIG } from "@/lib/constants"
+import type { Prisma, TaskCategory, TaskType } from "@prisma/client"
 
 type AchievementCondition = {
   type: string
   count?: number
   days?: number
-  category?: string
-  type_filter?: string
+  category?: TaskCategory
+  type_filter?: TaskType
   points?: number
   completionRate?: number
   zeroRejection?: boolean
@@ -85,15 +86,11 @@ async function checkCondition(
 ): Promise<boolean> {
   switch (condition.type) {
     case "TASK_COUNT": {
-      const where: any = { memberId, status: "APPROVED" }
-      if (condition.category) where.task = { category: condition.category }
-      if (condition.type_filter) where.task = { ...(where.task || {}), type: condition.type_filter }
-      if (condition.tags?.length) {
-        where.task = {
-          ...(where.task || {}),
-          OR: condition.tags.map((tag) => ({ tags: { contains: tag } })),
-        }
-      }
+      const where: Prisma.TaskCompletionWhereInput = { memberId, status: "APPROVED" }
+      const taskWhere: Prisma.TaskWhereInput = {}
+      if (condition.category) taskWhere.category = condition.category
+      if (condition.type_filter) taskWhere.type = condition.type_filter
+      if (Object.keys(taskWhere).length > 0) where.task = taskWhere
       const count = await prisma.taskCompletion.count({ where })
       return count >= (condition.count || 0)
     }
@@ -104,7 +101,7 @@ async function checkCondition(
     }
 
     case "STREAK": {
-      const where: any = { memberId, status: "APPROVED" }
+      const where: Prisma.TaskCompletionWhereInput = { memberId, status: "APPROVED" }
       if (condition.category) where.task = { category: condition.category }
       const days = await getConsecutiveDays(memberId, where)
       return days >= (condition.days || condition.count || 0)
@@ -167,7 +164,7 @@ async function checkCondition(
 
 async function getConsecutiveDays(
   memberId: string,
-  baseWhere?: any
+  baseWhere?: Prisma.TaskCompletionWhereInput
 ): Promise<number> {
   const completions = await prisma.taskCompletion.findMany({
     where: { memberId, status: "APPROVED", ...(baseWhere || {}) },

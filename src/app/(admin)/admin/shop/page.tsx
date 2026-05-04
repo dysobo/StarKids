@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { createReward, deleteReward, approveRedemption, rejectRedemption } from "@/lib/actions/shop"
-import { cn } from "@/lib/utils"
+import { cn, getErrorMessage } from "@/lib/utils"
 import { CardSkeleton } from "@/components/ui/Skeleton"
 
 const CATEGORIES = [
@@ -74,8 +74,8 @@ export default function AdminShopPage() {
       e.currentTarget.reset()
       fetchData()
       router.refresh()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(getErrorMessage(err))
     }
   }
 

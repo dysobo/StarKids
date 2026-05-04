@@ -197,7 +197,7 @@ export default function AdminAnalyticsPage() {
               <YAxis tick={{ fontSize: 12, fill: "#9B8E7A" }} />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: "1px solid #f0ebe3", fontSize: 13 }}
-                formatter={(value: any, name: any) => [`${value}${name === "points" ? "⭐" : "个"}`, name === "points" ? "积分" : "完成数"]}
+                formatter={(value: unknown, name: unknown) => [`${value}${name === "points" ? "⭐" : "个"}`, name === "points" ? "积分" : "完成数"]}
               />
               <Bar dataKey="points" fill="#FFE066" radius={[6, 6, 0, 0]} name="points" />
             </BarChart>
@@ -213,7 +213,7 @@ export default function AdminAnalyticsPage() {
               <YAxis tick={{ fontSize: 12, fill: "#9B8E7A" }} />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: "1px solid #f0ebe3", fontSize: 13 }}
-                formatter={(value: any) => [`${value}⭐`, "积分"]}
+                formatter={(value: unknown) => [`${value}⭐`, "积分"]}
               />
               <Line
                 type="monotone"

@@ -48,11 +48,11 @@ export async function updateOutfit(formData: FormData) {
       name: formData.get("name") as string,
       description: (formData.get("description") as string) || null,
       image: (formData.get("image") as string) || "👗",
-      species: (species && species !== "ALL" ? species : null) as any,
+      species: (species && species !== "ALL" ? species : null) as PetSpecies | null,
       points: parseInt(formData.get("points") as string) || 0,
       isDefault: formData.get("isDefault") === "true",
       sortOrder: parseInt(formData.get("sortOrder") as string) || 0,
-    } as any,
+    },
   })
 
   revalidatePath("/admin/pets")

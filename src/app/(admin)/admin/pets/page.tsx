@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { createOutfit, updateOutfit, deleteOutfit, unlockOutfit } from "@/lib/actions/outfits"
-import { cn } from "@/lib/utils"
+import { cn, getErrorMessage } from "@/lib/utils"
 import { CardSkeleton } from "@/components/ui/Skeleton"
 import { useToast } from "@/components/ui/ToastProvider"
 
@@ -87,8 +87,8 @@ export default function AdminPetsPage() {
       e.currentTarget.reset()
       fetchData()
       router.refresh()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(getErrorMessage(err))
     }
   }
 
@@ -102,8 +102,8 @@ export default function AdminPetsPage() {
       setEditItem(null)
       fetchData()
       router.refresh()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(getErrorMessage(err))
     }
   }
 
@@ -124,8 +124,8 @@ export default function AdminPetsPage() {
       setGrantDialog(null)
       fetchData()
       router.refresh()
-    } catch (err: any) {
-      toast(err.message, "error")
+    } catch (err: unknown) {
+      toast(getErrorMessage(err), "error")
     }
   }
 

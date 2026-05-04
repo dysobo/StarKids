@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { feedPet, dressPet, createPet } from "@/lib/actions/pets"
-import { cn } from "@/lib/utils"
+import { cn, getErrorMessage } from "@/lib/utils"
 import { SPECIES_EMOJI, SPECIES_LABELS, STAGE_CONFIG, MOOD_EMOJIS } from "@/lib/constants"
 
 type StageInfo = { threshold: number; emoji: string; label: string }
@@ -45,7 +45,6 @@ export default function KidsPetPage() {
   const [speciesEmoji, setSpeciesEmoji] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [feeding, setFeeding] = useState(false)
-  const [dressing, setDressing] = useState<string | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showOutfits, setShowOutfits] = useState(false)
   const [evolving, setEvolving] = useState(false)
@@ -99,25 +98,23 @@ export default function KidsPetPage() {
 
       setAnimatePet(true)
       setTimeout(() => setAnimatePet(false), 600)
-    } catch (e: any) {
-      toast(e.message || "互动失败", "error")
+    } catch (e: unknown) {
+      toast(getErrorMessage(e, "互动失败"), "error")
     } finally {
       setFeeding(false)
     }
   }
 
   async function handleDress(outfitId: string) {
-    setDressing(outfitId)
     try {
       await dressPet(outfitId)
       setAnimatePet(true)
       setTimeout(() => setAnimatePet(false), 800)
       fetchData()
       router.refresh()
-    } catch (e: any) {
-      toast(e.message || "换装失败", "error")
+    } catch (e: unknown) {
+      toast(getErrorMessage(e, "换装失败"), "error")
     } finally {
-      setDressing(null)
       setShowOutfits(false)
     }
   }
@@ -130,8 +127,8 @@ export default function KidsPetPage() {
       setShowCreateForm(false)
       fetchData()
       router.refresh()
-    } catch (err: any) {
-      toast(err.message, "error")
+    } catch (err: unknown) {
+      toast(getErrorMessage(err), "error")
     }
   }
 
@@ -153,7 +150,7 @@ export default function KidsPetPage() {
 
   function getNextStage(): StageInfo | null {
     const stages = Object.entries(STAGE_CONFIG)
-    for (const [key, config] of stages) {
+    for (const [, config] of stages) {
       if (totalPoints < config.threshold) return config
     }
     return null

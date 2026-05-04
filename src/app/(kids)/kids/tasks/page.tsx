@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { completeTask } from "@/lib/actions/tasks"
-import { cn } from "@/lib/utils"
+import { cn, getErrorMessage } from "@/lib/utils"
 import { CATEGORY_LABELS } from "@/lib/constants"
 import { useToast } from "@/components/ui/ToastProvider"
 import { PageTransition } from "@/components/ui/PageTransition"
@@ -57,8 +57,8 @@ export default function KidsTasksPage() {
       fetchTasks()
       router.refresh()
       toast("任务完成！等待审核 ✨", "success")
-    } catch (e: any) {
-      toast(e.message || "提交失败", "error")
+    } catch (e: unknown) {
+      toast(getErrorMessage(e, "提交失败"), "error")
     } finally {
       setCompleting(null)
     }

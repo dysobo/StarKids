@@ -1,6 +1,7 @@
 import { auth } from "@/auth"
 import { prisma } from "@/lib/db"
 import { NextResponse } from "next/server"
+import { getErrorMessage } from "@/lib/utils"
 
 export async function GET() {
   try {
@@ -35,8 +36,8 @@ export async function GET() {
     ])
 
     return NextResponse.json({ rewards, pendingRedemptions })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+  } catch (e: unknown) {
+    return NextResponse.json({ error: getErrorMessage(e) }, { status: 500 })
   }
 }
 
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json({ reward }, { status: 201 })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+  } catch (e: unknown) {
+    return NextResponse.json({ error: getErrorMessage(e) }, { status: 500 })
   }
 }

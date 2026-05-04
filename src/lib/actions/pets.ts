@@ -91,7 +91,7 @@ export async function dressPet(outfitId: string) {
 
   await prisma.pet.update({
     where: { id: pet.id },
-    data: { currentOutfit: outfitId } as any,
+    data: { currentOutfit: outfitId },
   })
 
   revalidatePath("/kids/pet")

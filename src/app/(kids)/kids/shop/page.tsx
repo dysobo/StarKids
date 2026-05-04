@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { redeemReward } from "@/lib/actions/shop"
-import { cn } from "@/lib/utils"
+import { cn, getErrorMessage } from "@/lib/utils"
 import { useToast } from "@/components/ui/ToastProvider"
 import { PageTransition } from "@/components/ui/PageTransition"
 import { GridSkeleton } from "@/components/ui/Skeleton"
@@ -69,8 +69,8 @@ export default function KidsShopPage() {
       fetchData()
       router.refresh()
       toast("兑换申请已提交！等待家长审核 🎉", "success")
-    } catch (e: any) {
-      toast(e.message || "兑换失败", "error")
+    } catch (e: unknown) {
+      toast(getErrorMessage(e, "兑换失败"), "error")
     } finally {
       setRedeeming(null)
     }
@@ -207,9 +207,7 @@ export default function KidsShopPage() {
 function RewardCard({
   reward,
   balance,
-  onRedeem,
   redeeming,
-  showInput,
   onShowInput,
   compact = false,
 }: {
