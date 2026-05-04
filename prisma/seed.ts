@@ -9,8 +9,12 @@
 
 import { PrismaClient } from '@prisma/client'
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
+import { PrismaPg } from '@prisma/adapter-pg'
 
-const adapter = new PrismaBetterSqlite3({ url: "file:./dev.db" })
+const databaseUrl = process.env.DATABASE_URL || "file:./dev.db"
+const adapter = databaseUrl.startsWith("postgresql://") || databaseUrl.startsWith("postgres://")
+  ? new PrismaPg({ connectionString: databaseUrl })
+  : new PrismaBetterSqlite3({ url: databaseUrl })
 const prisma = new PrismaClient({ adapter })
 
 async function main() {
