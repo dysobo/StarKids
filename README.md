@@ -13,6 +13,24 @@ StarKids 是一个面向家庭的儿童任务、积分和奖励系统。家长�
 - 通知系统：任务审核、兑换申请、成就解锁等站内通知。
 - 数据分析：近 7/30 天任务、积分、审批率和成员统计。
 
+## 本分支主要更新
+
+本分支基于上游 `Panda-995/StarKids` 复刻后做了稳定性和可维护性修正：
+
+- 补强权限校验：新增统一授权工具，Server Actions 和 API 路由增加角色校验与家庭归属校验。
+- 修复越权风险：覆盖任务审核、奖励审批、装扮解锁、通知已读/删除、管理端与儿童端 API 数据边界。
+- 修正积分逻辑：每日积分上限现在会真正截断 `calculatePoints` 的返回结果，并补充回归测试。
+- 修正成就逻辑：修复 `STREAK` 条件字段不一致问题，成就接口返回可直接用于表单编辑的结构化条件。
+- 清理 lint：接入 Next ESLint 配置，移除项目代码中的 lint warning，`npm run lint` 现在为零 warning。
+- 更新文档：重写 README 的运行、Docker、环境变量、权限模型和维护说明。
+- 小版本依赖更新：更新 `react-hook-form` 与 `zod` 到当前兼容补丁版本。
+
+当前验证结果：
+
+- `npm run lint`：通过，0 warning。
+- `npm run build`：通过。
+- `npx tsx tests/test-suite.ts`：通过，65/65。
+
 ## 技术栈
 
 - Next.js 15 App Router
