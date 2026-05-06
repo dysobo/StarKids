@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { deleteReward, approveRedemption, rejectRedemption } from "@/lib/actions/shop"
+import { updateReward, deleteReward, approveRedemption, rejectRedemption } from "@/lib/actions/shop"
 import { apiPath } from "@/lib/client-api"
 import { cn, getErrorMessage } from "@/lib/utils"
 import { CardSkeleton } from "@/components/ui/Skeleton"
@@ -17,15 +17,24 @@ const CATEGORIES = [
   { value: "MONEY", label: "💰 零花钱", color: "text-candy-green" },
 ]
 
+const STATUS_LABELS: Record<string, string> = {
+  ACTIVE: "上架",
+  INACTIVE: "下架",
+  SOLD_OUT: "售罄",
+}
+
 type RewardData = {
   id: string
   name: string
+  description: string | null
   points: number
   category: string
   status: string
   isFeatured: boolean
   remainingStock: number
   stock: number
+  maxPerPerson: number
+  cooldownDays: number
 }
 
 type RedemptionData = {
@@ -43,6 +52,7 @@ export default function AdminShopPage() {
   const [pendingRedemptions, setPendingRedemptions] = useState<RedemptionData[]>([])
   const [activeTab, setActiveTab] = useState<"rewards" | "review">("rewards")
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [editingReward, setEditingReward] = useState<RewardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
@@ -99,6 +109,20 @@ export default function AdminShopPage() {
     }
   }
 
+  async function handleUpdate(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setError("")
+    const formData = new FormData(e.currentTarget)
+    try {
+      await updateReward(formData)
+      setEditingReward(null)
+      fetchData()
+      router.refresh()
+    } catch (err: unknown) {
+      setError(getErrorMessage(err))
+    }
+  }
+
   async function handleDelete(id: string) {
     if (!confirm("确定要删除这个商品吗？")) return
     await deleteReward(id)
@@ -132,7 +156,11 @@ export default function AdminShopPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-warm-800">🛒 积分商城</h1>
         <button
-          onClick={() => setShowCreateForm(!showCreateForm)}
+          onClick={() => {
+            setShowCreateForm(!showCreateForm)
+            setEditingReward(null)
+            setError("")
+          }}
           className="h-10 px-5 bg-admin-primary text-white rounded-xl text-sm font-semibold hover:brightness-110 transition-all"
         >
           + 添加商品
@@ -160,53 +188,27 @@ export default function AdminShopPage() {
       </div>
 
       {showCreateForm && (
-        <form onSubmit={handleCreate} className="bg-white rounded-xl shadow-card p-5 space-y-4">
-          <h3 className="font-semibold text-warm-700">添加新商品</h3>
-          {error && <div className="bg-candy-red/10 text-candy-red text-sm rounded-xl p-3">{error}</div>}
+        <RewardForm
+          onSubmit={handleCreate}
+          onCancel={() => {
+            setShowCreateForm(false)
+            setError("")
+          }}
+          error={error}
+        />
+      )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-warm-600 mb-1">商品名称 *</label>
-              <input name="name" required placeholder="如：遥控汽车" className="w-full h-10 px-3 rounded-lg border border-warm-200 text-sm focus:border-admin-primary focus:outline-none" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-warm-600 mb-1">分类</label>
-              <select name="category" className="w-full h-10 px-3 rounded-lg border border-warm-200 text-sm focus:border-admin-primary focus:outline-none">
-                {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-warm-600 mb-1">所需积分 *</label>
-              <input name="points" type="number" defaultValue={50} min={1} className="w-full h-10 px-3 rounded-lg border border-warm-200 text-sm" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-warm-600 mb-1">库存 (0=不限)</label>
-              <input name="stock" type="number" defaultValue={0} min={0} className="w-full h-10 px-3 rounded-lg border border-warm-200 text-sm" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-warm-600 mb-1">每人限购</label>
-              <input name="maxPerPerson" type="number" defaultValue={0} min={0} className="w-full h-10 px-3 rounded-lg border border-warm-200 text-sm" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-warm-600 mb-1">冷却天数</label>
-              <input name="cooldownDays" type="number" defaultValue={0} min={0} className="w-full h-10 px-3 rounded-lg border border-warm-200 text-sm" />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-warm-600 mb-1">描述</label>
-              <input name="description" placeholder="商品描述..." className="w-full h-10 px-3 rounded-lg border border-warm-200 text-sm focus:border-admin-primary focus:outline-none" />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input type="checkbox" name="isFeatured" value="true" id="isFeatured" className="rounded" />
-            <label htmlFor="isFeatured" className="text-sm text-warm-600">推荐商品 (显示在商城首页)</label>
-          </div>
-
-          <div className="flex gap-3">
-            <button type="submit" className="h-10 px-5 bg-admin-primary text-white rounded-xl text-sm font-semibold hover:brightness-110 transition-all">添加商品</button>
-            <button type="button" onClick={() => setShowCreateForm(false)} className="h-10 px-5 bg-warm-100 text-warm-600 rounded-xl text-sm hover:bg-warm-200 transition-colors">取消</button>
-          </div>
-        </form>
+      {editingReward && (
+        <RewardForm
+          key={editingReward.id}
+          reward={editingReward}
+          onSubmit={handleUpdate}
+          onCancel={() => {
+            setEditingReward(null)
+            setError("")
+          }}
+          error={error}
+        />
       )}
 
       {activeTab === "rewards" && (
@@ -226,7 +228,14 @@ export default function AdminShopPage() {
                       {CATEGORIES.find((c) => c.value === reward.category)?.label}
                     </p>
                   </div>
-                  {reward.isFeatured && <span className="text-xs px-2 py-0.5 rounded-full bg-brand-100 text-brand-500">推荐</span>}
+                  <div className="flex flex-col items-end gap-1">
+                    {reward.isFeatured && <span className="text-xs px-2 py-0.5 rounded-full bg-brand-100 text-brand-500">推荐</span>}
+                    {reward.status !== "ACTIVE" && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-warm-100 text-warm-500">
+                        {STATUS_LABELS[reward.status] || reward.status}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="font-kids text-xl text-candy-orange">{reward.points} ⭐</span>
@@ -234,12 +243,24 @@ export default function AdminShopPage() {
                     <span className="text-xs text-warm-400">库存: {reward.remainingStock}/{reward.stock}</span>
                   )}
                 </div>
-                <button
-                  onClick={() => handleDelete(reward.id)}
-                  className="w-full h-8 border border-warm-200 rounded-lg text-xs text-warm-500 hover:border-candy-red hover:text-candy-red transition-colors"
-                >
-                  移除
-                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      setEditingReward(reward)
+                      setShowCreateForm(false)
+                      setError("")
+                    }}
+                    className="h-8 border border-warm-200 rounded-lg text-xs text-warm-500 hover:border-admin-primary hover:text-admin-primary transition-colors"
+                  >
+                    编辑
+                  </button>
+                  <button
+                    onClick={() => handleDelete(reward.id)}
+                    className="h-8 border border-warm-200 rounded-lg text-xs text-warm-500 hover:border-candy-red hover:text-candy-red transition-colors"
+                  >
+                    移除
+                  </button>
+                </div>
               </div>
             ))
           )}
@@ -274,5 +295,83 @@ export default function AdminShopPage() {
         </div>
       )}
     </div>
+  )
+}
+
+function RewardForm({
+  reward,
+  onSubmit,
+  onCancel,
+  error,
+}: {
+  reward?: RewardData
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void
+  onCancel: () => void
+  error?: string
+}) {
+  const isEditing = Boolean(reward)
+
+  return (
+    <form onSubmit={onSubmit} className="bg-white rounded-xl shadow-card p-5 space-y-4">
+      <h3 className="font-semibold text-warm-700">{isEditing ? "编辑商品" : "添加新商品"}</h3>
+      {reward && <input type="hidden" name="id" value={reward.id} />}
+      {error && <div className="bg-candy-red/10 text-candy-red text-sm rounded-xl p-3">{error}</div>}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-warm-600 mb-1">商品名称 *</label>
+          <input name="name" required defaultValue={reward?.name || ""} placeholder="如：遥控汽车" className="w-full h-10 px-3 rounded-lg border border-warm-200 text-sm focus:border-admin-primary focus:outline-none" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-warm-600 mb-1">分类</label>
+          <select name="category" defaultValue={reward?.category || "TOY"} className="w-full h-10 px-3 rounded-lg border border-warm-200 text-sm focus:border-admin-primary focus:outline-none">
+            {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-warm-600 mb-1">所需积分 *</label>
+          <input name="points" type="number" defaultValue={reward?.points || 50} min={1} className="w-full h-10 px-3 rounded-lg border border-warm-200 text-sm" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-warm-600 mb-1">库存 (0=不限)</label>
+          <input name="stock" type="number" defaultValue={reward?.stock || 0} min={0} className="w-full h-10 px-3 rounded-lg border border-warm-200 text-sm" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-warm-600 mb-1">每人限购</label>
+          <input name="maxPerPerson" type="number" defaultValue={reward?.maxPerPerson || 0} min={0} className="w-full h-10 px-3 rounded-lg border border-warm-200 text-sm" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-warm-600 mb-1">冷却天数</label>
+          <input name="cooldownDays" type="number" defaultValue={reward?.cooldownDays || 0} min={0} className="w-full h-10 px-3 rounded-lg border border-warm-200 text-sm" />
+        </div>
+        {isEditing && (
+          <div>
+            <label className="block text-sm font-medium text-warm-600 mb-1">状态</label>
+            <select name="status" defaultValue={reward?.status || "ACTIVE"} className="w-full h-10 px-3 rounded-lg border border-warm-200 text-sm focus:border-admin-primary focus:outline-none">
+              <option value="ACTIVE">上架</option>
+              <option value="INACTIVE">下架</option>
+              <option value="SOLD_OUT">售罄</option>
+            </select>
+          </div>
+        )}
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-warm-600 mb-1">描述</label>
+          <input name="description" defaultValue={reward?.description || ""} placeholder="商品描述..." className="w-full h-10 px-3 rounded-lg border border-warm-200 text-sm focus:border-admin-primary focus:outline-none" />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {isEditing && <input type="hidden" name="isFeaturedInput" value="true" />}
+        <input type="checkbox" name="isFeatured" value="true" id={isEditing ? "editIsFeatured" : "isFeatured"} defaultChecked={reward?.isFeatured || false} className="rounded" />
+        <label htmlFor={isEditing ? "editIsFeatured" : "isFeatured"} className="text-sm text-warm-600">推荐商品 (显示在商城首页)</label>
+      </div>
+
+      <div className="flex gap-3">
+        <button type="submit" className="h-10 px-5 bg-admin-primary text-white rounded-xl text-sm font-semibold hover:brightness-110 transition-all">
+          {isEditing ? "保存修改" : "添加商品"}
+        </button>
+        <button type="button" onClick={onCancel} className="h-10 px-5 bg-warm-100 text-warm-600 rounded-xl text-sm hover:bg-warm-200 transition-colors">取消</button>
+      </div>
+    </form>
   )
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { createTask, deleteTask, approveTask, rejectTask } from "@/lib/actions/tasks"
+import { createTask, updateTask, deleteTask, approveTask, rejectTask } from "@/lib/actions/tasks"
 import { useRouter } from "next/navigation"
 import { apiPath } from "@/lib/client-api"
 import { cn, getErrorMessage } from "@/lib/utils"
@@ -15,7 +15,6 @@ const CATEGORIES = [
   { value: "STUDY", label: "学习" },
   { value: "EXERCISE", label: "运动" },
   { value: "SOCIAL", label: "社交" },
-  { value: "CREATIVE", label: "创意" },
   { value: "OTHER", label: "其他" },
 ]
 
@@ -26,6 +25,7 @@ type TaskData = {
   icon: string | null
   category: string
   type: string
+  difficulty: string
   points: number
   autoApprove: boolean
   status: string
@@ -46,6 +46,7 @@ export default function AdminTasksPage() {
   const [pendingCompletions, setPendingCompletions] = useState<CompletionData[]>([])
   const [activeTab, setActiveTab] = useState<"tasks" | "review">("tasks")
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [editingTask, setEditingTask] = useState<TaskData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
@@ -76,6 +77,20 @@ export default function AdminTasksPage() {
       await createTask(formData)
       setShowCreateForm(false)
       e.currentTarget.reset()
+      fetchData()
+      router.refresh()
+    } catch (err: unknown) {
+      setError(getErrorMessage(err))
+    }
+  }
+
+  async function handleUpdate(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setError("")
+    const formData = new FormData(e.currentTarget)
+    try {
+      await updateTask(formData)
+      setEditingTask(null)
       fetchData()
       router.refresh()
     } catch (err: unknown) {
@@ -118,6 +133,8 @@ export default function AdminTasksPage() {
         <button
           onClick={() => {
             setShowCreateForm(!showCreateForm)
+            setEditingTask(null)
+            setError("")
           }}
           className="h-10 px-5 bg-admin-primary text-white rounded-xl text-sm font-semibold hover:brightness-110 transition-all"
         >
@@ -148,7 +165,23 @@ export default function AdminTasksPage() {
       {showCreateForm && (
         <TaskForm
           onSubmit={handleCreate}
-          onCancel={() => setShowCreateForm(false)}
+          onCancel={() => {
+            setShowCreateForm(false)
+            setError("")
+          }}
+          error={error}
+        />
+      )}
+
+      {editingTask && (
+        <TaskForm
+          key={editingTask.id}
+          task={editingTask}
+          onSubmit={handleUpdate}
+          onCancel={() => {
+            setEditingTask(null)
+            setError("")
+          }}
           error={error}
         />
       )}
@@ -183,6 +216,16 @@ export default function AdminTasksPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setEditingTask(task)
+                      setShowCreateForm(false)
+                      setError("")
+                    }}
+                    className="h-8 px-3 border border-warm-200 rounded-lg text-xs text-warm-500 hover:border-admin-primary hover:text-admin-primary transition-colors"
+                  >
+                    编辑
+                  </button>
                   <AssignDialog
                     taskId={task.id}
                     onAssign={() => {
@@ -247,17 +290,22 @@ export default function AdminTasksPage() {
 }
 
 function TaskForm({
+  task,
   onSubmit,
   onCancel,
   error,
 }: {
+  task?: TaskData
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void
   onCancel: () => void
   error?: string
 }) {
+  const isEditing = Boolean(task)
+
   return (
     <form onSubmit={onSubmit} className="bg-white rounded-xl shadow-card p-5 space-y-4">
-      <h3 className="font-semibold text-warm-700">创建新任务</h3>
+      <h3 className="font-semibold text-warm-700">{isEditing ? "编辑任务" : "创建新任务"}</h3>
+      {task && <input type="hidden" name="id" value={task.id} />}
 
       {error && (
         <div className="bg-candy-red/10 text-candy-red text-sm rounded-xl p-3">{error}</div>
@@ -269,13 +317,14 @@ function TaskForm({
           <input
             name="name"
             required
+            defaultValue={task?.name || ""}
             placeholder="如：刷牙"
             className="w-full h-10 px-3 rounded-lg border border-warm-200 text-warm-700 text-sm focus:border-admin-primary focus:outline-none"
           />
         </div>
         <div>
           <label className="block text-sm font-medium text-warm-600 mb-1">图标</label>
-          <select name="icon" className="w-full h-10 px-3 rounded-lg border border-warm-200 text-warm-700 text-sm focus:border-admin-primary focus:outline-none">
+          <select name="icon" defaultValue={task?.icon || ""} className="w-full h-10 px-3 rounded-lg border border-warm-200 text-warm-700 text-sm focus:border-admin-primary focus:outline-none">
             <option value="">选择图标</option>
             {EMOJI_PRESETS.map((emoji) => (
               <option key={emoji} value={emoji}>{emoji}</option>
@@ -284,7 +333,7 @@ function TaskForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-warm-600 mb-1">分类</label>
-          <select name="category" className="w-full h-10 px-3 rounded-lg border border-warm-200 text-warm-700 text-sm focus:border-admin-primary focus:outline-none">
+          <select name="category" defaultValue={task?.category || "OTHER"} className="w-full h-10 px-3 rounded-lg border border-warm-200 text-warm-700 text-sm focus:border-admin-primary focus:outline-none">
             {CATEGORIES.map((c) => (
               <option key={c.value} value={c.value}>{c.label}</option>
             ))}
@@ -292,7 +341,7 @@ function TaskForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-warm-600 mb-1">类型</label>
-          <select name="type" className="w-full h-10 px-3 rounded-lg border border-warm-200 text-warm-700 text-sm focus:border-admin-primary focus:outline-none">
+          <select name="type" defaultValue={task?.type || "DAILY"} className="w-full h-10 px-3 rounded-lg border border-warm-200 text-warm-700 text-sm focus:border-admin-primary focus:outline-none">
             <option value="DAILY">日常任务</option>
             <option value="CHALLENGE">挑战任务</option>
             <option value="ONETIME">一次性任务</option>
@@ -303,14 +352,14 @@ function TaskForm({
           <input
             name="points"
             type="number"
-            defaultValue={5}
+            defaultValue={task?.points || 5}
             min={1}
             className="w-full h-10 px-3 rounded-lg border border-warm-200 text-warm-700 text-sm focus:border-admin-primary focus:outline-none"
           />
         </div>
         <div>
           <label className="block text-sm font-medium text-warm-600 mb-1">难度</label>
-          <select name="difficulty" className="w-full h-10 px-3 rounded-lg border border-warm-200 text-warm-700 text-sm focus:border-admin-primary focus:outline-none">
+          <select name="difficulty" defaultValue={task?.difficulty || "EASY"} className="w-full h-10 px-3 rounded-lg border border-warm-200 text-warm-700 text-sm focus:border-admin-primary focus:outline-none">
             <option value="EASY">简单</option>
             <option value="MEDIUM">中等</option>
             <option value="HARD">困难</option>
@@ -320,6 +369,7 @@ function TaskForm({
           <label className="block text-sm font-medium text-warm-600 mb-1">描述 (给小朋友看)</label>
           <input
             name="description"
+            defaultValue={task?.description || ""}
             placeholder="如：把牙齿刷得白白的，笑起来更自信！"
             className="w-full h-10 px-3 rounded-lg border border-warm-200 text-warm-700 text-sm focus:border-admin-primary focus:outline-none"
           />
@@ -327,8 +377,9 @@ function TaskForm({
       </div>
 
       <div className="flex items-center gap-2">
-        <input type="checkbox" name="autoApprove" value="true" id="autoApprove" className="rounded" />
-        <label htmlFor="autoApprove" className="text-sm text-warm-600">自动通过 (不需要家长审核)</label>
+        {isEditing && <input type="hidden" name="autoApproveInput" value="true" />}
+        <input type="checkbox" name="autoApprove" value="true" id={isEditing ? "editAutoApprove" : "autoApprove"} defaultChecked={task?.autoApprove || false} className="rounded" />
+        <label htmlFor={isEditing ? "editAutoApprove" : "autoApprove"} className="text-sm text-warm-600">自动通过 (不需要家长审核)</label>
       </div>
 
       <div className="flex gap-3">
@@ -336,7 +387,7 @@ function TaskForm({
           type="submit"
           className="h-10 px-5 bg-admin-primary text-white rounded-xl text-sm font-semibold hover:brightness-110 transition-all"
         >
-          创建任务
+          {isEditing ? "保存修改" : "创建任务"}
         </button>
         <button
           type="button"

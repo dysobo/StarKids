@@ -65,23 +65,26 @@ export async function updateTask(formData: FormData) {
   if (!existing) throw new Error("任务不存在")
   assertSameFamily(existing.familyId, member)
 
-  const name = formData.get("name") as string
+  const name = (formData.get("name") as string)?.trim()
+  if (!name) throw new Error("任务名称不能为空")
+  const points = parseInt(formData.get("points") as string, 10)
+  const maxDaily = parseInt(formData.get("maxDaily") as string, 10)
 
   await prisma.task.update({
     where: { id },
     data: {
-      name: name?.trim(),
+      name,
       description: (formData.get("description") as string) || null,
       icon: (formData.get("icon") as string) || existing.icon,
       category: (formData.get("category") as TaskCategory) || existing.category,
       type: (formData.get("type") as TaskType) || existing.type,
       difficulty: (formData.get("difficulty") as TaskDifficulty) || existing.difficulty,
       frequency: (formData.get("frequency") as TaskFrequency) || existing.frequency,
-      points: parseInt(formData.get("points") as string) ?? existing.points,
-      autoApprove: formData.has("autoApprove")
+      points: Number.isFinite(points) && points > 0 ? points : existing.points,
+      autoApprove: formData.has("autoApproveInput")
         ? formData.get("autoApprove") === "true"
         : existing.autoApprove,
-      maxDaily: parseInt(formData.get("maxDaily") as string) || existing.maxDaily,
+      maxDaily: Number.isFinite(maxDaily) && maxDaily > 0 ? maxDaily : existing.maxDaily,
       status: (formData.get("status") as TaskStatus) || existing.status,
       weekDays: formData.get("weekDays")
         ? JSON.stringify((formData.get("weekDays") as string).split(",").map(Number).filter((n) => !isNaN(n)))
@@ -90,6 +93,8 @@ export async function updateTask(formData: FormData) {
   })
 
   revalidatePath("/admin/tasks")
+  revalidatePath("/kids/tasks")
+  revalidatePath("/kids")
 }
 
 export async function deleteTask(id: string) {

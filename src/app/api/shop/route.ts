@@ -36,7 +36,7 @@ export async function GET() {
 
     const [rewards, pendingRedemptions] = await Promise.all([
       prisma.reward.findMany({
-        where: { familyId: member.familyId, status: "ACTIVE" },
+        where: { familyId: member.familyId },
         orderBy: { createdAt: "desc" },
       }),
       prisma.rewardRedemption.findMany({

@@ -33,27 +33,55 @@ export async function updateReward(formData: FormData) {
   const member = await requireFamilyMember("PARENT")
 
   const id = formData.get("id") as string
+  if (!id) throw new Error("商品ID不能为空")
+
   const existing = await prisma.reward.findUnique({
     where: { id },
-    select: { familyId: true },
+    select: {
+      familyId: true,
+      image: true,
+      category: true,
+      points: true,
+      stock: true,
+      remainingStock: true,
+      maxPerPerson: true,
+      cooldownDays: true,
+      status: true,
+    },
   })
   if (!existing) throw new Error("商品不存在")
   assertSameFamily(existing.familyId, member)
 
+  const name = (formData.get("name") as string)?.trim()
+  if (!name) throw new Error("商品名称不能为空")
+
+  const points = parseInt(formData.get("points") as string, 10)
+  const stock = parseInt(formData.get("stock") as string, 10)
+  const maxPerPerson = parseInt(formData.get("maxPerPerson") as string, 10)
+  const cooldownDays = parseInt(formData.get("cooldownDays") as string, 10)
+  const nextStock = Number.isFinite(stock) && stock >= 0 ? stock : existing.stock
+  const remainingStock =
+    nextStock === 0 ? 0 : Math.max(0, existing.remainingStock + nextStock - existing.stock)
+
   await prisma.reward.update({
     where: { id },
     data: {
-      name: (formData.get("name") as string)?.trim(),
+      name,
       description: (formData.get("description") as string) || null,
-      category: (formData.get("category") as RewardCategory) || undefined,
-      image: formData.get("image") as string || undefined,
-      points: parseInt(formData.get("points") as string) || undefined,
-      status: (formData.get("status") as RewardStatus) || undefined,
-      isFeatured: formData.has("isFeatured") ? formData.get("isFeatured") === "true" : undefined,
+      category: (formData.get("category") as RewardCategory) || existing.category,
+      image: (formData.get("image") as string) || existing.image,
+      points: Number.isFinite(points) && points > 0 ? points : existing.points,
+      stock: nextStock,
+      remainingStock,
+      maxPerPerson: Number.isFinite(maxPerPerson) && maxPerPerson >= 0 ? maxPerPerson : existing.maxPerPerson,
+      cooldownDays: Number.isFinite(cooldownDays) && cooldownDays >= 0 ? cooldownDays : existing.cooldownDays,
+      status: (formData.get("status") as RewardStatus) || existing.status,
+      isFeatured: formData.has("isFeaturedInput") ? formData.get("isFeatured") === "true" : undefined,
     }
   })
 
   revalidatePath("/admin/shop")
+  revalidatePath("/kids/shop")
 }
 
 export async function deleteReward(id: string) {
