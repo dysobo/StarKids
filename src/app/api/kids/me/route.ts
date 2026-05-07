@@ -1,6 +1,9 @@
 import { auth } from "@/auth"
+import { addAppDays, isSameAppDay } from "@/lib/app-date"
 import { prisma } from "@/lib/db"
 import { NextResponse } from "next/server"
+
+export const dynamic = "force-dynamic"
 
 export async function GET() {
   const session = await auth()
@@ -22,23 +25,23 @@ export async function GET() {
 
   if (completions.length > 0) {
     const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    const firstDate = new Date(completions[0].date)
+    const startOffset = isSameAppDay(firstDate, today)
+      ? 0
+      : isSameAppDay(firstDate, addAppDays(today, -1))
+        ? 1
+        : null
 
-    for (let i = 0; i < completions.length; i++) {
-      const expectedDate = new Date(today)
-      expectedDate.setDate(expectedDate.getDate() - i)
-      const compDate = new Date(completions[i].date)
-      compDate.setHours(0, 0, 0, 0)
+    if (startOffset !== null) {
+      for (let i = 0; i < completions.length; i++) {
+        const expectedDate = addAppDays(today, -(startOffset + i))
+        const compDate = new Date(completions[i].date)
 
-      if (compDate.getTime() === expectedDate.getTime()) {
-        streak++
-      } else if (i === 0) {
-        const yesterday = new Date(today)
-        yesterday.setDate(yesterday.getDate() - 1)
-        if (compDate.getTime() !== yesterday.getTime()) break
-        streak++
-      } else {
-        break
+        if (isSameAppDay(compDate, expectedDate)) {
+          streak++
+        } else {
+          break
+        }
       }
     }
   }

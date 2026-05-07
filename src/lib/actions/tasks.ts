@@ -6,6 +6,7 @@ import { calculatePoints } from "@/lib/points-engine"
 import { checkAchievements } from "@/lib/achievement-engine"
 import { createNotification } from "./notifications"
 import { assertSameFamily, requireFamilyMember, requireUserId } from "@/lib/authz"
+import { getAppDayRange } from "@/lib/app-date"
 import type { TaskCategory, TaskType, TaskFrequency, TaskDifficulty, TaskStatus } from "@prisma/client"
 
 // ═══════════════════════════════════════════════════════════════
@@ -163,14 +164,13 @@ export async function completeTask(taskId: string) {
     throw new Error("这个任务还没分配给你")
   }
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const { start: today, end: tomorrow } = getAppDayRange()
 
   const existing = await prisma.taskCompletion.findFirst({
     where: {
       taskId,
       memberId: member.id,
-      date: { gte: today },
+      date: { gte: today, lt: tomorrow },
       status: { not: "REJECTED" },
     },
   })
@@ -335,19 +335,15 @@ export async function rejectTask(completionId: string, note?: string) {
 // ═══════════════════════════════════════════════════════════════
 
 export async function getFamilyTasks(familyId: string) {
+  const { start, end } = getAppDayRange()
+
   return prisma.task.findMany({
     where: { familyId, status: "ACTIVE" },
     include: {
       assignees: { select: { id: true, nickname: true } },
       completions: {
         where: {
-          date: {
-            gte: (() => {
-              const d = new Date()
-              d.setHours(0, 0, 0, 0)
-              return d
-            })(),
-          },
+          date: { gte: start, lt: end },
         },
         include: { member: { select: { nickname: true } } },
       },
@@ -357,8 +353,7 @@ export async function getFamilyTasks(familyId: string) {
 }
 
 export async function getMemberTasks(memberId: string) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const { start, end } = getAppDayRange()
 
   return prisma.task.findMany({
     where: {
@@ -367,7 +362,7 @@ export async function getMemberTasks(memberId: string) {
     },
     include: {
       completions: {
-        where: { date: { gte: today }, memberId },
+        where: { date: { gte: start, lt: end }, memberId },
         select: { id: true, status: true, pointsEarned: true },
       },
     },

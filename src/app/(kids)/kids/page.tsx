@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { apiPath } from "@/lib/client-api"
 import { PageTransition } from "@/components/ui/PageTransition"
@@ -33,34 +33,51 @@ export default function KidsHomePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [tasksRes, memberRes] = await Promise.all([
-          fetch(apiPath("/api/kids/tasks")),
-          fetch(apiPath("/api/kids/me")),
-        ])
-        if (tasksRes.ok) {
-          const data = await tasksRes.json()
-          setTasks(data.tasks || [])
-        } else if (tasksRes.status === 404) {
-          setError("你还没有加入家庭，请先让家长邀请你加入家庭")
-        }
-        if (memberRes.ok) {
-          const data = await memberRes.json()
-          setMember(data)
-        } else if (memberRes.status === 404) {
-          setError("你还没有加入家庭，请先让家长邀请你加入家庭")
-        }
-      } catch (e) {
-        console.error(e)
-        setError("网络错误，请稍后再试")
-      } finally {
-        setLoading(false)
+  const fetchData = useCallback(async () => {
+    try {
+      const [tasksRes, memberRes] = await Promise.all([
+        fetch(apiPath("/api/kids/tasks"), { cache: "no-store" }),
+        fetch(apiPath("/api/kids/me"), { cache: "no-store" }),
+      ])
+      if (tasksRes.ok) {
+        const data = await tasksRes.json()
+        setTasks(data.tasks || [])
+      } else if (tasksRes.status === 404) {
+        setError("你还没有加入家庭，请先让家长邀请你加入家庭")
       }
+      if (memberRes.ok) {
+        const data = await memberRes.json()
+        setMember(data)
+      } else if (memberRes.status === 404) {
+        setError("你还没有加入家庭，请先让家长邀请你加入家庭")
+      }
+    } catch (e) {
+      console.error(e)
+      setError("网络错误，请稍后再试")
+    } finally {
+      setLoading(false)
     }
-    fetchData()
   }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  useEffect(() => {
+    const intervalId = window.setInterval(fetchData, 60_000)
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") fetchData()
+    }
+
+    document.addEventListener("visibilitychange", refreshWhenVisible)
+    window.addEventListener("focus", fetchData)
+
+    return () => {
+      window.clearInterval(intervalId)
+      document.removeEventListener("visibilitychange", refreshWhenVisible)
+      window.removeEventListener("focus", fetchData)
+    }
+  }, [fetchData])
 
   const completedCount = tasks.filter(
     (t) => t.completions.some((c) => c.status === "APPROVED" || c.status === "PENDING")

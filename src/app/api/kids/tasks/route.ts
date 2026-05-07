@@ -1,6 +1,9 @@
 import { auth } from "@/auth"
+import { getAppDayRange } from "@/lib/app-date"
 import { prisma } from "@/lib/db"
 import { NextResponse } from "next/server"
+
+export const dynamic = "force-dynamic"
 
 export async function GET() {
   const session = await auth()
@@ -11,8 +14,7 @@ export async function GET() {
   })
   if (!member) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const { start, end } = getAppDayRange()
 
   const tasks = await prisma.task.findMany({
     where: {
@@ -22,7 +24,7 @@ export async function GET() {
     },
     include: {
       completions: {
-        where: { date: { gte: today }, memberId: member.id },
+        where: { date: { gte: start, lt: end }, memberId: member.id },
         select: { id: true, status: true, pointsEarned: true },
       },
     },

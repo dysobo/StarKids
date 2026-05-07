@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db"
+import { addAppDays, getAppDateParts, getAppDayOfWeek, getAppDayRange, isSameAppDay } from "@/lib/app-date"
 
 type PointRuleParams = {
   days?: number
@@ -131,20 +132,20 @@ async function getStreakDays(memberId: string): Promise<number> {
 
   let streak = 0
   const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const firstDate = new Date(completions[0].date)
+  const startOffset = isSameAppDay(firstDate, today)
+    ? 0
+    : isSameAppDay(firstDate, addAppDays(today, -1))
+      ? 1
+      : null
+
+  if (startOffset === null) return 0
 
   for (let i = 0; i < completions.length; i++) {
-    const expectedDate = new Date(today)
-    expectedDate.setDate(expectedDate.getDate() - i)
+    const expectedDate = addAppDays(today, -(startOffset + i))
     const compDate = new Date(completions[i].date)
-    compDate.setHours(0, 0, 0, 0)
 
-    if (compDate.getTime() === expectedDate.getTime()) {
-      streak++
-    } else if (i === 0) {
-      const yesterday = new Date(today)
-      yesterday.setDate(yesterday.getDate() - 1)
-      if (compDate.getTime() !== yesterday.getTime()) break
+    if (isSameAppDay(compDate, expectedDate)) {
       streak++
     } else {
       break
@@ -155,14 +156,13 @@ async function getStreakDays(memberId: string): Promise<number> {
 }
 
 async function getTodayPoints(memberId: string): Promise<number> {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const { start, end } = getAppDayRange()
 
   const completions = await prisma.taskCompletion.aggregate({
     where: {
       memberId,
       status: "APPROVED",
-      date: { gte: today },
+      date: { gte: start, lt: end },
     },
     _sum: { pointsEarned: true },
   })
@@ -171,15 +171,16 @@ async function getTodayPoints(memberId: string): Promise<number> {
 }
 
 function isWeekend(): boolean {
-  const day = new Date().getDay()
+  const day = getAppDayOfWeek()
   return day === 0 || day === 6
 }
 
 function isBirthday(birthday: Date | null): boolean {
   if (!birthday) return false
-  const today = new Date()
+  const today = getAppDateParts()
+  const birthdayParts = getAppDateParts(birthday)
   return (
-    today.getMonth() === birthday.getMonth() &&
-    today.getDate() === birthday.getDate()
+    today.month === birthdayParts.month &&
+    today.day === birthdayParts.day
   )
 }

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db"
 import { SPECIES_EMOJI, STAGE_CONFIG } from "@/lib/constants"
+import { addAppDays, isSameAppDay } from "@/lib/app-date"
 import type { Prisma, TaskCategory, TaskType } from "@prisma/client"
 
 type AchievementCondition = {
@@ -125,10 +126,7 @@ async function checkCondition(
     case "SPECIAL_DATE": {
       const days = condition.days || 7
       const rate = condition.completionRate || 100
-      const now = new Date()
-      const startDate = new Date(now)
-      startDate.setDate(startDate.getDate() - days)
-      startDate.setHours(0, 0, 0, 0)
+      const startDate = addAppDays(new Date(), -days)
 
       const completions = await prisma.taskCompletion.findMany({
         where: {
@@ -177,25 +175,21 @@ async function getConsecutiveDays(
 
   let streak = 0
   const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const firstDate = new Date(completions[0].date)
+  const startOffset = isSameAppDay(firstDate, today)
+    ? 0
+    : isSameAppDay(firstDate, addAppDays(today, -1))
+      ? 1
+      : null
 
-  const expectedDate = new Date(today)
-
-  if (new Date(completions[0].date).toDateString() !== today.toDateString()) {
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    if (new Date(completions[0].date).toDateString() !== yesterday.toDateString()) {
-      return 0
-    }
-  }
+  if (startOffset === null) return 0
 
   for (let i = 0; i < completions.length; i++) {
     const compDate = new Date(completions[i].date)
-    compDate.setHours(0, 0, 0, 0)
+    const expectedDate = addAppDays(today, -(startOffset + i))
 
-    if (compDate.getTime() === expectedDate.getTime()) {
+    if (isSameAppDay(compDate, expectedDate)) {
       streak++
-      expectedDate.setDate(expectedDate.getDate() - 1)
     } else {
       break
     }

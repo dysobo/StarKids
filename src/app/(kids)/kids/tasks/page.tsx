@@ -35,7 +35,7 @@ export default function KidsTasksPage() {
 
   const fetchTasks = useCallback(async () => {
     try {
-      const res = await fetch(apiPath("/api/kids/tasks"))
+      const res = await fetch(apiPath("/api/kids/tasks"), { cache: "no-store" })
       if (res.ok) {
         const data = await res.json()
         setTasks(data.tasks || [])
@@ -49,6 +49,22 @@ export default function KidsTasksPage() {
 
   useEffect(() => {
     fetchTasks()
+  }, [fetchTasks])
+
+  useEffect(() => {
+    const intervalId = window.setInterval(fetchTasks, 60_000)
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") fetchTasks()
+    }
+
+    document.addEventListener("visibilitychange", refreshWhenVisible)
+    window.addEventListener("focus", fetchTasks)
+
+    return () => {
+      window.clearInterval(intervalId)
+      document.removeEventListener("visibilitychange", refreshWhenVisible)
+      window.removeEventListener("focus", fetchTasks)
+    }
   }, [fetchTasks])
 
   async function handleComplete(taskId: string) {
